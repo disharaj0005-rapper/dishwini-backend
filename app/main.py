@@ -15,8 +15,11 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        settings.FRONTEND_URL,
-        settings.ADMIN_URL,
+        settings.FRONTEND_URL.rstrip("/"),
+        settings.ADMIN_URL.rstrip("/"),
+        "https://dishwini.vercel.app",
+        "https://dishwini-admin.vercel.app",
+        "https://dishwini-store.vercel.app",
         "http://localhost:3000",
         "http://localhost:3001",
     ],
