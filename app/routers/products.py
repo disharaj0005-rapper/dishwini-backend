@@ -238,6 +238,16 @@ async def delete_product(
     if not existing.data:
         raise HTTPException(status_code=404, detail="Product not found")
 
+    # Check if product is in any orders
+    variants = db.table("product_variants").select("id").eq("product_id", product_id).execute()
+    if variants.data:
+        variant_ids = [v["id"] for v in variants.data]
+        orders = db.table("order_items").select("id").in_("product_variant_id", variant_ids).limit(1).execute()
+        if orders.data:
+            # Soft delete instead of hard delete to preserve order history
+            db.table("products").update({"is_active": False}).eq("id", product_id).execute()
+            return {"message": "Product is part of existing orders and was deactivated instead of deleted to preserve history."}
+
     # Delete images from Cloudinary
     images = db.table("product_images").select("image_url").eq("product_id", product_id).execute()
     for img in images.data:
@@ -307,6 +317,14 @@ async def delete_variant(
     if not variant.data:
         raise HTTPException(status_code=404, detail="Variant not found")
     
+    # Check if variant is in any orders
+    orders = db.table("order_items").select("id").eq("product_variant_id", variant_id).limit(1).execute()
+    if orders.data:
+        raise HTTPException(
+            status_code=400, 
+            detail="Cannot delete this variant because it is part of existing orders. Please set its stock to 0 instead."
+        )
+
     product_id = variant.data[0]["product_id"]
     all_variants = db.table("product_variants").select("id").eq("product_id", product_id).execute()
     
